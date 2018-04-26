@@ -1,11 +1,7 @@
 
-# coding: utf-8
-
 # **Goal:** To build a predictive model to predict the winning probability of teams during the final match of IPL Season 2017
 
 # Since the predictability of winning the final match in Season 2017 depends mainly on the compositions of the teams and their performances in Season 2017, we will consider only the Season 2017's data. 
-
-# In[150]:
 
 
 from IPython import get_ipython
@@ -23,16 +19,10 @@ pd.set_option('display.max_columns', 50)
 pd.set_option('display.max_columns', 100)
 
 
-# In[151]:
-
-
 # read the input files and look at the top few lines #
 data_path = "/Users/venkatasravankanukolanu/Documents/Data Files/ipl/"
 match= pd.read_csv(data_path+"matches.csv")
 score= pd.read_csv(data_path+"deliveries.csv")
-
-
-# In[165]:
 
 
 match_df=match[(match['season']==2017) & (match['dl_applied']==0)]
@@ -40,9 +30,6 @@ match_df.head()
 
 
 # Since "id" from "match_df" and match_id from score_df are common columns, we can join "season" with score_df to subset for delivary level data from Season 2017
-
-# In[153]:
-
 
 score_df=score.merge(match_df[['id','season','winner']],left_on='match_id',right_on='id', how='inner')
 score_df.head()
@@ -63,8 +50,6 @@ score_df.head()
 # 11. Total runs in the last 5 overs
 # 12. Totals wickets in the last 5 overs
 
-# In[154]:
-
 
 # Runs scored and wickets taken per over #
 score_df.player_dismissed.fillna(0, inplace=True)
@@ -74,9 +59,6 @@ train_df.columns=[['match_id','innings','over','batting_team','bowling_team','wi
 # Cumulative score and cumulative wickets taken by each over
 train_df['innings_wickets'] = train_df.groupby(['match_id', 'innings'])['wkts_over'].cumsum()
 train_df['innings_score'] = train_df.groupby(['match_id', 'innings'])['runs_over'].cumsum()
-
-
-# In[155]:
 
 
 # Target that the team is chasing down. if first innings, target is -1#
@@ -90,24 +72,14 @@ train_df.loc[first_innings_index, "target"] = -1
 #train_df.head(40)
 
 
-# In[156]:
-
-
 # Remaining target that the team is chasing down. if first innings, remaining target is -1#
 train_df['remaining_target']=train_df['target']-train_df['innings_runs']
 train_df.loc[first_innings_index, "remaining_target"] = -1
 #train_df.head(40)
 
-
-# In[157]:
-
-
 #Run rate
 train_df['run_rate']=train_df['innings_runs']/train_df['over']
 train_df.head()
-
-
-# In[158]:
 
 
 # Required run rate. If first innings, required run rate is -1. If 20th over, equired run rate is 99 #
@@ -121,10 +93,6 @@ def get_required_rr(row):
     
 train_df['required_run_rate'] = train_df.apply(lambda row: get_required_rr(row), axis=1)
 
-
-# In[159]:
-
-
 #Difference in run rate and required run rate. If first innings, it is -1#
 def get_rr_diff(row):
     if row['innings'] == 1:
@@ -134,10 +102,6 @@ def get_rr_diff(row):
     
 train_df['runrate_diff'] = train_df.apply(lambda row: get_rr_diff(row), axis=1)
 
-
-# In[160]:
-
-
 #Response. If batting team is winner, set 1 elseif bowling_team is winner, set 0 #
 #train_df['is_batting_team'] = (train_df['team1'] == train_df['batting_team']).astype('int')
 train_df['is_batting_winner'] = (train_df['batting_team'] == train_df['winner']).astype('int')
@@ -145,8 +109,6 @@ train_df.head()
 
 
 # ### Function to train a Xgboost model
-
-# In[170]:
 
 
 x_cols = ['innings', 'over', 'runs_over', 'wkts_over', 'innings_wkts', 'innings_runs', 'target', 'remaining_target', 'run_rate', 'required_run_rate', 'runrate_diff']
@@ -161,9 +123,6 @@ val_X = np.array(val_df[x_cols[:]])[:-1,:]
 val_y = np.array(val_df['is_batting_winner'])[:-1]
 print(dev_X.shape, dev_y.shape)
 print(val_X.shape, val_y.shape)
-
-
-# In[168]:
 
 
 # define the function to create the model #
@@ -185,18 +144,10 @@ def runXGB(train_X, train_y, seed_val=0):
     model = xgb.train(plst, xgtrain, num_rounds)
     return model
 
-
-# In[176]:
-
-
 # let us build the model and get predcition for the final match #
 model = runXGB(dev_X, dev_y)
 xgtest = xgb.DMatrix(val_X)
 preds = model.predict(xgtest)
-
-
-# In[181]:
-
 
 def create_feature_map(features):
     outfile = open('xgb.fmap', 'w')
@@ -229,4 +180,3 @@ ax.set_ylabel("Importance score (%)")
 ax.set_title("Variable importance")
 autolabel(rects)
 plt.show()
-
